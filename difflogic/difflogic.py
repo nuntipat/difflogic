@@ -3,10 +3,10 @@ import difflogic_cuda
 import numpy as np
 from .functional import bin_op_s, get_unique_connections, GradFactor
 from .packbitstensor import PackBitsTensor
-
+from typing import Literal
 
 ########################################################################################################################
-
+InitializationType = Literal['residual', 'random']
 
 class LogicLayer(torch.nn.Module):
     """
@@ -20,6 +20,7 @@ class LogicLayer(torch.nn.Module):
             grad_factor: float = 1.,
             implementation: str = None,
             connections: str = 'random',
+            initialization_type: InitializationType = 'residual',
     ):
         """
         :param in_dim:      input dimensionality of the layer
@@ -30,7 +31,14 @@ class LogicLayer(torch.nn.Module):
         :param connections: method for initializing the connectivity of the logic gate net
         """
         super().__init__()
-        self.weights = torch.nn.parameter.Parameter(torch.randn(out_dim, 16, device=device))
+
+        self.initialization_type = initialization_type
+        weights = torch.randn(out_dim, 16, device=device)
+        if self.initialization_type == 'residual':
+            weights[:, :] = 0
+            weights[:, 3] = 5  # Initialize to identity gate
+        self.weights = torch.nn.parameter.Parameter(weights)
+
         self.in_dim = in_dim
         self.out_dim = out_dim
         self.device = device
@@ -152,9 +160,9 @@ class LogicLayer(torch.nn.Module):
         return '{}, {}, {}'.format(self.in_dim, self.out_dim, 'train' if self.training else 'eval')
 
     def get_connections(self, connections, device='cuda'):
-        assert self.out_dim * 2 >= self.in_dim, 'The number of neurons ({}) must not be smaller than half of the ' \
-                                                'number of inputs ({}) because otherwise not all inputs could be ' \
-                                                'used or considered.'.format(self.out_dim, self.in_dim)
+        # assert self.out_dim * 2 >= self.in_dim, 'The number of neurons ({}) must not be smaller than half of the ' \
+        #                                         'number of inputs ({}) because otherwise not all inputs could be ' \
+        #                                         'used or considered.'.format(self.out_dim, self.in_dim)
         if connections == 'random':
             c = torch.randperm(2 * self.out_dim) % self.in_dim
             c = torch.randperm(self.in_dim)[c]
