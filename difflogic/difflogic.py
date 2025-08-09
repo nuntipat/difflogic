@@ -3,7 +3,7 @@ import difflogic_cuda
 import numpy as np
 from .functional import bin_op_s, get_unique_connections, GradFactor
 from .packbitstensor import PackBitsTensor
-from typing import Literal
+from typing import Literal, Union
 
 ########################################################################################################################
 InitializationType = Literal['residual', 'random']
@@ -19,7 +19,7 @@ class LogicLayer(torch.nn.Module):
             device: str = 'cuda',
             grad_factor: float = 1.,
             implementation: str = None,
-            connections: str = 'random',
+            connections: Union[str, tuple] = 'random',
             initialization_type: InitializationType = 'residual',
     ):
         """
@@ -58,8 +58,11 @@ class LogicLayer(torch.nn.Module):
         assert self.implementation in ['cuda', 'python'], self.implementation
 
         self.connections = connections
-        assert self.connections in ['random', 'unique'], self.connections
-        self.indices = self.get_connections(self.connections, device)
+        if isinstance(self.connections, tuple):
+            self.indices = self.connections
+        else:
+            assert self.connections in ['random', 'unique'], self.connections
+            self.indices = self.get_connections(self.connections, device)
 
         if self.implementation == 'cuda':
             """
